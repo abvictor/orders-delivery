@@ -1,9 +1,31 @@
 import { createBrowserRouter } from 'react-router-dom'
 
-import { Dashboard } from './pages/app/dashboard'
+import { Dashboard } from './pages/app/dashboard/dashboard'
 import { SignIn } from './pages/auth/sign-in';
+import { SignUp } from "./pages/auth/sign-up";
+
+import { AppLayout } from './pages/_layouts/app';
+import { AuthLayout } from './pages/_layouts/auth';
+import { Orders } from './pages/orders/orders';
+import { NotFound } from './pages/404';
 
 export const router = createBrowserRouter([
-  { path: "/", element: <Dashboard /> },
-  { path: "/sign-in", element: <SignIn /> },
+  {
+    path: "/",
+    element: <AppLayout />,
+    errorElement: <NotFound />,
+    children: [
+      { path: "/dashboard", element: <Dashboard /> },
+      { path: "/orders", element: <Orders /> },
+    ],
+  },
+  {
+    path: "/",
+    element: <AuthLayout />,
+    errorElement: <NotFound />,
+    children: [
+      { path: "/sign-in", element: <SignIn /> },
+      { path: "/sign-up", element: <SignUp /> },
+    ],
+  },
 ]);

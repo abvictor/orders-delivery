@@ -1,11 +1,18 @@
 import { RouterProvider } from 'react-router-dom'
-import './global.css'
 import { router } from './routes'
+
+import './global.css'
+
+import { Toaster } from 'sonner'
+import { ThemeProvider } from './components/theme/theme-provider'
 
 export function App() {
   return (
-    <RouterProvider router={router}/>
-  )
+    <ThemeProvider storageKey='orders.shop-theme' defaultTheme='dark'>
+      <RouterProvider router={router} />
+      <Toaster richColors position="top-right" />
+    </ThemeProvider>
+  );
 }
 
 
