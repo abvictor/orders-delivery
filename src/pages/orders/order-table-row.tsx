@@ -1,22 +1,22 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { ArrowRight, Search, X } from "lucide-react";
+import { useState } from "react";
+
+import { approveOrder } from "@/api/approve-order";
+import { cancelOrder } from "@/api/cancel-order";
+import { deliverOrder } from "@/api/deliver-order";
+import { dispatchOrder } from "@/api/dispatch-order";
+import { GetOrdersResponse } from "@/api/get-orders";
+import { OrderStatus } from "./order-status";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { ArrowRight, Search, X } from "lucide-react";
+
 import { OrderDetails } from "./order-details";
-import { OrderStatus } from "./order-status";
 
-import { ptBR } from "date-fns/locale";
-import { formatDistanceToNow } from 'date-fns'
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { cancelOrder } from "@/api/cancel-order";
-import { GetOrdersResponse } from "@/api/get-orders";
-import { approveOrder } from "@/api/approve-order";
-import { deliverOrder } from "@/api/deliver-order";
-import { dispatchOrder } from "@/api/dispatch-order";
-
-
-export interface OrderTableRowProps {
+interface OrderTableRowProps {
   order: {
     orderId: string;
     createdAt: string;
@@ -26,104 +26,107 @@ export interface OrderTableRowProps {
   };
 }
 
-
 export function OrderTableRow({ order }: OrderTableRowProps) {
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const queryClient = useQueryClient();
 
-  const [isDetailOpen, setIsDetailsOpen] = useState(false);
-
-  const queryClient = useQueryClient()
-
-  function updateOrderStatusOnCache(orderId: string, status: OrderStatus){
+  function updateOrderStatusOnCache(orderId: string, status: OrderStatus) {
     const ordersListCache = queryClient.getQueriesData<GetOrdersResponse>({
-        queryKey: ['orders']
-      })
+      queryKey: ["orders"],
+    });
 
-      ordersListCache.forEach(([ cachedKey, cachedData ]) => {
-        if(!cachedData){
-          return 
-        }
-        queryClient.setQueryData<GetOrdersResponse>(cachedKey, {
-          ...cachedData,
-          orders: cachedData.orders.map((order) => {
-            if(order.orderId === orderId){
-              return {...order, status}
-            }
+    ordersListCache.forEach(([cacheKey, cacheData]) => {
+      if (!cacheData) {
+        return;
+      }
 
-            return order
-          })
-        })
-      })
+      queryClient.setQueryData<GetOrdersResponse>(cacheKey, {
+        ...cacheData,
+        orders: cacheData.orders.map((order) => {
+          if (order.orderId === orderId) {
+            return { ...order, status };
+          }
+
+          return order;
+        }),
+      });
+    });
   }
 
-  const { mutateAsync: cancelOrderFn, isPending: isCancelingOrder } = useMutation({
-    mutationFn: cancelOrder,
-    async onSuccess(_, { orderId }){
-      updateOrderStatusOnCache(orderId, 'canceled')
-    }
-  });
+  const { mutateAsync: cancelOrderFn, isPending: isCancelingOrder } =
+    useMutation({
+      mutationFn: cancelOrder,
+      async onSuccess(_, { orderId }) {
+        updateOrderStatusOnCache(orderId, "canceled");
+      },
+    });
 
-  const { mutateAsync: approveOrderFn, isPending: isApprovingOrder } = useMutation({
-    mutationFn: approveOrder,
-    async onSuccess(_, { orderId }) {
-      updateOrderStatusOnCache(orderId, "processing");
-    },
-  });
+  const { mutateAsync: approveOrderFn, isPending: isApprovingOrder } =
+    useMutation({
+      mutationFn: approveOrder,
+      async onSuccess(_, { orderId }) {
+        updateOrderStatusOnCache(orderId, "processing");
+      },
+    });
 
-    const { mutateAsync: deliverOrderFn, isPending: isDeliveringOrder } = useMutation({
+  const { mutateAsync: dispatchOrderFn, isPending: isDispatchingOrder } =
+    useMutation({
+      mutationFn: dispatchOrder,
+      async onSuccess(_, { orderId }) {
+        updateOrderStatusOnCache(orderId, "delivering");
+      },
+    });
+
+  const { mutateAsync: deliverOrderFn, isPending: isDeliveringOrder } =
+    useMutation({
       mutationFn: deliverOrder,
       async onSuccess(_, { orderId }) {
         updateOrderStatusOnCache(orderId, "delivered");
       },
     });
 
-      const { mutateAsync: dispatchOrderFn, isPending: isDispatchingOrder } = useMutation({
-        mutationFn: dispatchOrder,
-        async onSuccess(_, { orderId }) {
-          updateOrderStatusOnCache(orderId, "delivering");
-        },
-      });
-
   return (
     <TableRow>
       <TableCell>
-        <Dialog open={isDetailOpen} onOpenChange={setIsDetailsOpen}>
-          <DialogTrigger>
-            <Button variant="ghost" size="sm">
+        <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">
               <Search className="h-3 w-3" />
               <span className="sr-only">Detalhes do pedido</span>
             </Button>
           </DialogTrigger>
-          <OrderDetails open={isDetailOpen} orderId={order.orderId} />
+
+          <OrderDetails open={isDetailsOpen} orderId={order.orderId} />
         </Dialog>
       </TableCell>
       <TableCell className="font-mono text-xs font-medium">
-        {order?.orderId}
+        {order.orderId}
       </TableCell>
-      <TableCell>
-        {formatDistanceToNow(order?.createdAt, {
+      <TableCell className="text-muted-foreground">
+        {formatDistanceToNow(order.createdAt, {
           locale: ptBR,
           addSuffix: true,
         })}
       </TableCell>
       <TableCell>
-        <OrderStatus status={order?.status} />
+        <OrderStatus status={order.status} />
       </TableCell>
-      <TableCell>{order?.customerName}</TableCell>
+      <TableCell className="font-medium">{order.customerName}</TableCell>
       <TableCell className="font-medium">
-        {(order?.total / 100).toLocaleString("pt-BR", {
+        {(order.total / 100).toLocaleString("pt-BR", {
           style: "currency",
           currency: "BRL",
         })}
       </TableCell>
       <TableCell>
-
         {order.status === "pending" && (
           <Button
             variant="outline"
             disabled={isApprovingOrder}
+            size="sm"
             onClick={() => approveOrderFn({ orderId: order.orderId })}
           >
-            <ArrowRight className="w-3 h-3 mr-2" />
+            <ArrowRight className="mr-2 h-3 w-3" />
             Aprovar
           </Button>
         )}
@@ -132,9 +135,10 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
           <Button
             variant="outline"
             disabled={isDispatchingOrder}
+            size="sm"
             onClick={() => dispatchOrderFn({ orderId: order.orderId })}
           >
-            <ArrowRight className="w-3 h-3 mr-2" />
+            <ArrowRight className="mr-2 h-3 w-3" />
             Em entrega
           </Button>
         )}
@@ -143,24 +147,25 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
           <Button
             variant="outline"
             disabled={isDeliveringOrder}
+            size="sm"
             onClick={() => deliverOrderFn({ orderId: order.orderId })}
           >
-            <ArrowRight className="w-3 h-3 mr-2" />
+            <ArrowRight className="mr-2 h-3 w-3" />
             Entregue
           </Button>
         )}
-
       </TableCell>
-      <TableCell className="font-medium">
+      <TableCell>
         <Button
-          onClick={() => cancelOrderFn({ orderId: order.orderId })}
           disabled={
             !["pending", "processing"].includes(order.status) ||
             isCancelingOrder
           }
+          onClick={() => cancelOrderFn({ orderId: order.orderId })}
           variant="ghost"
+          size="sm"
         >
-          <X className="w-3 h-3 mr-2" />
+          <X className="mr-2 h-3 w-3" />
           Cancelar
         </Button>
       </TableCell>
