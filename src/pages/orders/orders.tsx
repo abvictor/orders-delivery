@@ -35,8 +35,6 @@ export function Orders() {
       });
     }
 
-
-
    return (
      <>
        <title>Pedidos | Orders.shop</title>
